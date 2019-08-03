@@ -121,7 +121,6 @@ int main(int argc, char **argv) {
 
     for(pcap_if_t *d=alldevs; d!=NULL; d=d->next)
     {
-        printf("comp : %s %s\n",d->name, argv[1]);
         if(strcmp(d->name, argv[1]) == 0){
           /*  for(pcap_addr_t *a=d->addresses; a!=NULL; a=a->next)
             {
@@ -152,11 +151,6 @@ int main(int argc, char **argv) {
 
     get_my_MAC(myMAC);
 
-    printf("myIP : ");
-    for(int j = 0 ; j < 4 ; j++){
-        printf("%u ", myIP[j]);
-    }
-    printf("\n");
     memcpy(eth.srcMac, myMAC, 6);
     memcpy(eth.destMac, "\xFF\xFF\xFF\xFF\xFF\xFF",6);
     eth.type = htons(0x0806);	//arp
@@ -175,7 +169,7 @@ int main(int argc, char **argv) {
 
     memcpy(arp.Sender_Ip, myIP, 4);
 
-    sscanf(argv[3],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
+    sscanf(argv[2],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
 
     memcpy(packet, &eth, sizeof(eth));
     length += sizeof(eth);
@@ -231,8 +225,8 @@ int main(int argc, char **argv) {
     memcpy(arp.Sender_Mac, myMAC,6);
     memcpy(arp.Target_Mac, victimMAC, 6);
 
-    sscanf(argv[2],"%u.%u.%u.%u",&arp.Sender_Ip[0],&arp.Sender_Ip[1],&arp.Sender_Ip[2],&arp.Sender_Ip[3]);
-    sscanf(argv[3],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
+    sscanf(argv[3],"%u.%u.%u.%u",&arp.Sender_Ip[0],&arp.Sender_Ip[1],&arp.Sender_Ip[2],&arp.Sender_Ip[3]);
+    sscanf(argv[2],"%u.%u.%u.%u",&arp.Target_Ip[0],&arp.Target_Ip[1],&arp.Target_Ip[2],&arp.Target_Ip[3]);
     memcpy(packet, &eth, sizeof(eth));
     length += sizeof(eth);
     memcpy(packet+length, &arp, sizeof(arp));
